@@ -17,6 +17,12 @@ A contract document comparison application that uses RAG (Retrieval-Augmented Ge
  * RAG-powered contract review
  * Interactive Streamlit interface
 
+ * RAG
+ * Cosine similarity search
+ * Langchain LCEL
+ * FastAPI
+ * Multiple document upload and save to dirctory
+
  
 <h2>Screenshots</h2>
 
