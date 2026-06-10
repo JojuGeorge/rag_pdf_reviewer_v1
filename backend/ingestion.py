@@ -9,10 +9,18 @@ from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_chroma import Chroma
 from pathlib import Path
+from fastapi import FastAPI, UploadFile, File
+import shutil
+import tempfile
+from typing import List
+
+app = FastAPI()
 
 BASE_DIR = Path(__file__).resolve().parent
 
 CONTRACT_FOLDER = BASE_DIR.parent / "data" / "contracts"
+Path(CONTRACT_FOLDER).mkdir(parents=True, exist_ok=True)
+
 
 embedding_model = OpenAIEmbeddings(
     model="text-embedding-3-small",
@@ -31,33 +39,55 @@ vector_store = Chroma(
     persist_directory="./chroma"
 )
 
-def ingestion():
-    for file in os.listdir(CONTRACT_FOLDER):
-        if not file.endswith(".pdf"):
-            continue
+@app.post("/upload-contracts")
+async def ingestion(files: List[UploadFile] = File(...)):
+    logs = []
+
+    uploaded_files=[]
+    for file in files:
+        if not file.filename.endswith(".pdf"):
+            continue            
         
-        file_path = os.path.join(CONTRACT_FOLDER, file)
+        destination = (
+            Path(CONTRACT_FOLDER) / file.filename
+        )
         
-        print(f"Processing: {file_path}")
+        with open(destination, "wb") as buffer:
+            shutil.copyfileobj(
+                file.file,
+                buffer
+            )
+        uploaded_files.append(file.filename)
         
-        loader = PyPDFLoader(str(file_path))
+        
+        logs.append(f"Processing: {file.filename}")
+        
+        loader = PyPDFLoader(str(destination))
         docs = loader.load()
         
+        logs.append(f"Loaded {len(docs)} pages")
+        
         chunks = text_splitter.split_documents(docs)
+        logs.append(f"Created {len(chunks)} chunks")
         
         # adding metadatas
         for chunk in chunks:
             chunk.metadata.update({
-                "contract_name": file,
-                "contract_path": str(file_path),
+                "contract_name": file.filename,
+                "contract_path": str(destination),
             })
                 
         vector_store.add_documents(
             documents=chunks,
             ids=[str(uuid.uuid4()) for _ in chunks]
         )
+        logs.append("Stored in Chroma")
         
-    print("\n DONE")
+    return {
+        "status": "success",
+        "uploaded_files": uploaded_files,
+        "logs": logs
+    }
       
 def get_retriever():
     retriever = Chroma(
@@ -67,5 +97,3 @@ def get_retriever():
     )        
     return retriever.as_retriever(search_kwargs={"k":5})
         
-if __name__ == "__main__":
-    ingestion()
