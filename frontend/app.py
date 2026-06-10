@@ -14,6 +14,13 @@ st.title("📄 Contract Comparison System")
 left, right = st.columns(2)
 upload_res=""
 
+if "terminal_logs" not in st.session_state:
+    st.session_state.terminal_logs = [
+        "> Contract Comparison System",
+        "> Waiting for action...",
+        ""
+    ]
+
 # --------------------------------------------------
 # LEFT SIDE
 # --------------------------------------------------
@@ -21,11 +28,15 @@ upload_res=""
 with left:
 
     st.subheader("Company Contract Upload")
+    
+    if "uploader_key" not in st.session_state:
+        st.session_state.uploader_key = 0
 
     company_pdfs = st.file_uploader(
         "Upload Contracts",
         type=["pdf"],
-        accept_multiple_files=True
+        accept_multiple_files=True,
+            key=f"company_uploader_{st.session_state.uploader_key}"
     )
 
     if st.button("Upload Contract"):
@@ -48,12 +59,21 @@ with left:
             )
             
             upload_res = response.json()
-
-            
+            st.session_state.terminal_logs.extend([
+                "",
+                "> Uploading contract(s)...",
+                *upload_res["logs"],
+                "> Upload complete."
+            ])
 
             if response.status_code == 200:
-                st.success("Contract uploaded successfully")
+                st.session_state.terminal_logs.append("> Contract uploaded successfully")   
+                
+                st.session_state.uploader_key += 1
+                st.rerun()
             else:
+                st.session_state.terminal_logs.append(f"Upload failed: {response.status_code}\n{response.text}")
+                 
                 st.error(f"Upload failed: {response.status_code}\n{response.text}"
 )
 
@@ -82,21 +102,16 @@ with right:
 # --------------------------------------------------
 
 st.divider()
-
 st.subheader("Output")
 
 output_placeholder = st.empty()
 
-if upload_res:
-    terminal_text = "\n".join(upload_res["logs"])
-
-    output_placeholder.code(
-        terminal_text,
-        language="bash"
-    )
+output_placeholder.code(
+    "\n".join(st.session_state.terminal_logs),
+    language="bash"
+)
 
 if analyze_clicked:
-
     if revised_pdf is None:
         st.warning("Please upload a revised contract")
     else:
@@ -117,26 +132,24 @@ if analyze_clicked:
             )
 
         if response.status_code == 200:
-
             data = response.json()
 
-            terminal_output = f"""
-> Searching vector database...
-
-> Similar contract found:
-{data["matched_contract"]}
-
-> Running comparison...
-
-{data["analysis"]}
-"""
+            st.session_state.terminal_logs.extend([
+    "",
+    "> Searching vector database...",
+    f"> Similar contract found: {data['matched_contract']}",
+    "",
+    "> Running comparison...",
+    data["analysis"]
+])
 
             output_placeholder.code(
-                terminal_output,
-                language="bash"
-            )
+    "\n".join(st.session_state.terminal_logs),
+    language="bash"
+)
 
         else:
             output_placeholder.error(
-                "Analysis failed"
+                "\n".join(st.session_state.terminal_logs.append("Analysis Failed...")),
+    language="bash"
             )
