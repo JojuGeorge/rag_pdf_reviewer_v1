@@ -36,7 +36,7 @@ with left:
         "Upload Contracts",
         type=["pdf"],
         accept_multiple_files=True,
-            key=f"company_uploader_{st.session_state.uploader_key}"
+        key=f"company_uploader_{st.session_state.uploader_key}"
     )
 
     if st.button("Upload Contract"):
@@ -85,12 +85,17 @@ with left:
 with right:
 
     st.subheader("Revised Contract")
+    
+    if "revised_key" not in st.session_state:
+        st.session_state.revised_key = 0
 
     revised_pdf = st.file_uploader(
         "Upload Revised Contract",
         type=["pdf"],
-        key="revised_pdf"
+        accept_multiple_files=True,
+        key=f"revised_{st.session_state.revised_key}"
     )
+    
 
     analyze_clicked = st.button(
         "Analyze Contract",
@@ -112,19 +117,24 @@ output_placeholder.code(
 )
 
 if analyze_clicked:
-    if revised_pdf is None:
+    if not revised_pdf:
         st.warning("Please upload a revised contract")
     else:
 
         with st.spinner("Analyzing contract..."):
 
-            files = {
-                "file": (
-                    revised_pdf.name,
-                    revised_pdf,
-                    "application/pdf"
+            files = []
+            for pdf in revised_pdf:
+                files.append(
+                    (
+                        "files",
+                        (
+                            pdf.name,
+                            pdf,
+                            "application/pdf"
+                        )
+                    )
                 )
-            }
 
             response = requests.post(
                 f"{FASTAPI_URL}/analyze",
@@ -135,21 +145,35 @@ if analyze_clicked:
             data = response.json()
 
             st.session_state.terminal_logs.extend([
-    "",
-    "> Searching vector database...",
-    f"> Similar contract found: {data['matched_contract']}",
-    "",
-    "> Running comparison...",
-    data["analysis"]
-])
+                "",
+                "> Starting analysis...",
+                *data["logs"],
+                ""
+             ])
 
-            output_placeholder.code(
-    "\n".join(st.session_state.terminal_logs),
-    language="bash"
-)
+            for idx, result in enumerate(data["results"], start=1):
+                st.session_state.terminal_logs.extend([
+                    f"> Revised Contract #{idx} {result['revised_contract_name']}",
+                    f"> Matched Contract: {result['matched_contract']}",
+                    "",
+                    result["analysis"],
+                    "",
+                    "-" * 80,
+                    ""
+                ])
+
+            output_placeholder.code("\n".join(st.session_state.terminal_logs), language="bash")
 
         else:
-            output_placeholder.error(
-                "\n".join(st.session_state.terminal_logs.append("Analysis Failed...")),
-    language="bash"
+            st.session_state.terminal_logs.append(
+                f"> Analysis Failed ({response.status_code})"
+            )
+
+            st.session_state.terminal_logs.append(
+                response.text
+            )
+
+            output_placeholder.code(
+                "\n".join(st.session_state.terminal_logs),
+                language="bash"
             )

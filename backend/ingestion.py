@@ -1,20 +1,19 @@
 from dotenv import load_dotenv
 load_dotenv()
 
-import os, uuid
+import uuid
 
 from langchain_community.document_loaders import PyPDFLoader
 
-from langchain_openai import ChatOpenAI, OpenAIEmbeddings
+from langchain_openai import  OpenAIEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_chroma import Chroma
 from pathlib import Path
-from fastapi import FastAPI, UploadFile, File
+from fastapi import APIRouter, UploadFile, File
 import shutil
-import tempfile
 from typing import List
 
-app = FastAPI()
+router = APIRouter()
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -39,7 +38,7 @@ vector_store = Chroma(
     persist_directory="./chroma"
 )
 
-@app.post("/upload-contracts")
+@router.post("/upload-contracts")
 async def ingestion(files: List[UploadFile] = File(...)):
     logs = []
 
@@ -89,11 +88,11 @@ async def ingestion(files: List[UploadFile] = File(...)):
         "logs": logs
     }
       
-def get_retriever():
-    retriever = Chroma(
-        collection_name="rag_chroma",
-        persist_directory="./chroma",
-        embedding_function=embedding_model
-    )        
-    return retriever.as_retriever(search_kwargs={"k":5})
+# def get_retriever():
+#     retriever = Chroma(
+#         collection_name="rag_chroma",
+#         persist_directory="./chroma",
+#         embedding_function=embedding_model
+#     )        
+#     return retriever.as_retriever(search_kwargs={"k":5})
         
