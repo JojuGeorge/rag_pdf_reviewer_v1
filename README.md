@@ -9,8 +9,10 @@ A contract document comparison application that uses RAG (Retrieval-Augmented Ge
 > frontend/streamlit run .\app.py
 
 
-#### Get requirements.txt
+#### Get requirements.txt & Install dependencies
 > pip freeze > requirements.txt
+
+> pip install -r requirements.txt
 
 ### Functionalities
 
