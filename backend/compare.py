@@ -13,8 +13,11 @@ from fastapi import APIRouter, UploadFile, File, HTTPException
 import shutil
 from typing import List
 from collections import defaultdict
+from sentence_transformers import CrossEncoder
+from collections import defaultdict
 
 llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
+reranker = CrossEncoder("cross-encoder/ms-marco-MiniLM-L-6-v2")
 # retriever = get_retriever()
 router=APIRouter()
 
@@ -40,8 +43,8 @@ vector_store = Chroma(
 )
 
 
-async def get_similar_contract(results):
-    contract_scores = defaultdict(float)
+async def get_similar_contract_reranked(revised_docs,results):
+    contract_chunks = defaultdict(list)
     contract_metadata = {}
 
     for doc, score in results:
@@ -50,21 +53,43 @@ async def get_similar_contract(results):
             continue
 
         contract_metadata[contract_path] = doc.metadata
-
-        # Chroma returns distance
-        similarity = 1 / (1 + score)
-
-        contract_scores[contract_path] += similarity
-
-    if not contract_scores:
+        contract_chunks[contract_path].append(doc.page_content)
+        
+    if not contract_chunks:
         return None
-
-    best_contract = max(
-        contract_scores.items(),
-        key=lambda x: x[1]
-    )[0]
     
-    return contract_metadata[best_contract]
+    query_text = "\n".join(doc.page_content for doc in revised_docs[:10])
+    
+    candidate_contracts=[]
+    
+    for contract_path, chunks in contract_chunks.items():
+        contract_text = "\n".join(chunks[:10])
+        
+        candidate_contracts.append({
+            "path": contract_path, 
+            "text": contract_text, 
+            "metadata": contract_metadata[contract_path]
+        })
+        
+    pairs = [
+        (query_text, candidate["text"]) for candidate in candidate_contracts
+    ]
+    
+    scores = reranker.predict(pairs)
+    
+    for candidate, score in zip(candidate_contracts, scores):
+        candidate["rerank_score"] = float(score)
+        
+    candidate_contracts.sort(key=lambda x: x["rerank_score"], reverse=True)
+    best_candidate = candidate_contracts[0]
+    
+    return {
+        "contract_path": best_candidate["path"],
+        "contract_name": best_candidate["metadata"]["contract_name"],
+        "rerank_score": best_candidate["rerank_score"]
+    }
+
+  
 
 # AI legal summary prompt
 prompt = ChatPromptTemplate.from_messages(
@@ -141,7 +166,7 @@ async def compary(files: List[UploadFile] = File(...)):
                 "logs": ["No matching contracts found in Chroma."]
             }
         
-        best_doc = await get_similar_contract(results)
+        best_doc = await get_similar_contract_reranked(revised_docs=revised_docs, results=results)
         if not best_doc:
             raise HTTPException(
                 status_code=404,

@@ -1,4 +1,4 @@
-# rag_pdf_reviewer_v1
+# RAG Legal Document Analyzer
 A contract document comparison application that uses RAG (Retrieval-Augmented Generation) to analyze, compare, and review contract documents.
 
 
@@ -9,6 +9,19 @@ A contract document comparison application that uses RAG (Retrieval-Augmented Ge
 > frontend/streamlit run .\app.py
 
 
+#### Get requirements.txt
+> pip freeze > requirements.txt
+
+### Functionalities
+
+ * RAG
+ * RAG Re-Ranking
+ * Cosine similarity search
+ * Langchain LCEL
+ * FastAPI
+ * Multiple document upload and save to dirctory
+ * Streamlit UI
+
 
 ### Features
  * Upload and analyze contract documents
@@ -17,11 +30,6 @@ A contract document comparison application that uses RAG (Retrieval-Augmented Ge
  * RAG-powered contract review
  * Interactive Streamlit interface
 
- * RAG
- * Cosine similarity search
- * Langchain LCEL
- * FastAPI
- * Multiple document upload and save to dirctory
 
  
 <h2>Screenshots</h2>
