@@ -1,4 +1,3 @@
-
 import streamlit as st
 import requests
 
@@ -21,12 +20,8 @@ if "terminal_logs" not in st.session_state:
         ""
     ]
 
-# --------------------------------------------------
-# LEFT SIDE
-# --------------------------------------------------
-
+# left side: company contract upload
 with left:
-
     st.subheader("Company Contract Upload")
     
     if "uploader_key" not in st.session_state:
@@ -68,24 +63,17 @@ with left:
 
             if response.status_code == 200:
                 st.session_state.terminal_logs.append("> Contract uploaded successfully")   
-                
                 st.session_state.uploader_key += 1
                 st.rerun()
             else:
                 st.session_state.terminal_logs.append(f"Upload failed: {response.status_code}\n{response.text}")
-                 
                 st.error(f"Upload failed: {response.status_code}\n{response.text}"
 )
 
 
-# --------------------------------------------------
-# RIGHT SIDE
-# --------------------------------------------------
-
+# right side: revised contract upload
 with right:
-
     st.subheader("Revised Contract")
-    
     if "revised_key" not in st.session_state:
         st.session_state.revised_key = 0
 
@@ -96,16 +84,13 @@ with right:
         key=f"revised_{st.session_state.revised_key}"
     )
     
-
     analyze_clicked = st.button(
         "Analyze Contract",
         type="primary"
     )
+    
 
-# --------------------------------------------------
-# OUTPUT AREA
-# --------------------------------------------------
-
+# output 
 st.divider()
 st.subheader("Output")
 
@@ -120,9 +105,7 @@ if analyze_clicked:
     if not revised_pdf:
         st.warning("Please upload a revised contract")
     else:
-
         with st.spinner("Analyzing contract..."):
-
             files = []
             for pdf in revised_pdf:
                 files.append(
@@ -143,7 +126,6 @@ if analyze_clicked:
 
         if response.status_code == 200:
             data = response.json()
-
             st.session_state.terminal_logs.extend([
                 "",
                 "> Starting analysis...",
@@ -161,19 +143,8 @@ if analyze_clicked:
                     "-" * 80,
                     ""
                 ])
-
             output_placeholder.code("\n".join(st.session_state.terminal_logs), language="bash")
-
         else:
-            st.session_state.terminal_logs.append(
-                f"> Analysis Failed ({response.status_code})"
-            )
-
-            st.session_state.terminal_logs.append(
-                response.text
-            )
-
-            output_placeholder.code(
-                "\n".join(st.session_state.terminal_logs),
-                language="bash"
-            )
+            st.session_state.terminal_logs.append(f"> Analysis Failed ({response.status_code})")
+            st.session_state.terminal_logs.append(response.text)
+            output_placeholder.code( "\n".join(st.session_state.terminal_logs), language="bash")
